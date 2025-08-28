@@ -10,7 +10,7 @@
         
     - name: download tomcat
       get_url:
-        url: https://archive.apache.org/dist/tomcat/tomact-9/v9.0.89/bin/apache-tomcat-9.0.89.tar.gz
+        url: https://dlcdn.apache.org/dist/tomcat/tomact-9/v9.0.97/bin/apache-tomcat-9.0.97.tar.gz
         dest: /tmp/apache-tomcat.tar.gz
 
     - name: extract tommcat
@@ -18,11 +18,11 @@
         src: /tmp/apache-tomcat.tar.gz
         dest: /opt/
         remote_src: yes
-        creates: /opt/apache-tomcat-9.0.89
+        creates: /opt/apache-tomcat-9.0.97
 
     - name: Symlink Tomcat
       file:
-        src: /opt/apache-tomcat-9.0.89
+        src: /opt/apache-tomcat-9.0.97
         dest: /opt/tomcat
         state: link
 
