@@ -1,34 +1,44 @@
 pipeline{
     agent any
+    tools{
+        mave 'maven'
+    }
     stages{
-        stage('github validation'){
+        stage('github checkout'){
           steps{
-                 git url: 'https://github.com/akshu20791/addressbook-cicd-project'
+                 git url: 'https://github.com/Brahmamk3/veera-milestone2.git', branch: 'main'
           }
         }
-        stage('compiling the code'){
+        stage('test and compilt and build with maven'){
           steps{
-                 sh 'mvn compile'
+                 sh 'mvn clean package -DskipTests'
           }
         }
-        stage('testing the code'){
+        stage('Install tomcat'){
             steps{
-                sh 'mvn test'
+                withCredentials([sshUserPrivateKey(credentialsId: 'ramssh' ,
+                                                   KeyFileVariable: 'SSH_KEY',
+                                                   usernameVariable: 'SSH_USER')]){
+                    sh '''
+                        ANSIBLE_HOST_KEY_CHECKING=False\
+                        ansible-palybook -i "35.179.120.115", -u $SSH_USER --private-key $SSH_key ansible/tomcat-install.yml
+                        '''
+                    
+                }
             }
         }
-        stage('qa of the code'){
+        stage('Install tomcat'){
             steps{
-                sh 'mvn pmd:pmd'
-            }
-        }
-        stage('package'){
-            steps{
-                sh 'mvn package'
-            }
-        }
-        stage("deploy the project on tomcat"){
-            steps{
-                sh "sudo mv /var/lib/jenkins/workspace/pipeline/target/addressbook.war /home/ubuntu/apache-tomcat-8.5.100/webapps/"
+                withCredentials([sshUserPrivateKey(credentialsId: 'ramssh' ,
+                                                   KeyFileVariable: 'SSH_KEY',
+                                                   usernameVariable: 'SSH_USER')]){
+                    sh '''
+                        ANSIBLE_HOST_KEY_CHECKING=False\
+                        ansible-palybook -i  "35.179.120.115", -u $SSH_USER --private-key $SSH_key\
+                        ansible/deploy.yml --extra-vars "war_file=${WORKSPACE}/target/addressbook.war app_name=addressbook"
+                        '''
+                    
+                }
             }
         }
     }
