@@ -1,0 +1,35 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: install java
+      apt: 
+        name: openjdk-11-jdk
+        state: present
+        update_cache: yes
+        
+    - name: download tomcat
+      get_url:
+        url: https://archive.apache.org/dist/tomcat/tomact-9/v9.0.93/bin/apache-tomcat-9.0.93.tar.gz
+        dest: /tmp/apache-tomcat.tar.gz
+
+    - name: extract tommcat
+      unarchive:
+        src: /tmp/apache-tomcat.tar.gz
+        dest: /opt/
+        remote_src: yes
+        creates: /opt/apache-tomcat-9.0.93
+
+    - name: Symlink Tomcat
+      file:
+        src: /opt/apache-tomcat-9.0.93
+        dest: /opt/tomcat
+        state: link
+
+    - name:  make tomcat executable
+      file:
+        path: /opt/tomcat/bin/catalina.sh
+        mode: '0755'
+
+    - name: start tomcat
+      shell: nohup /opt/tomcat/bin/startup.sh &
