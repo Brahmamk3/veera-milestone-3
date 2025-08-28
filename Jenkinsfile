@@ -21,7 +21,7 @@ pipeline{
                                                    usernameVariable: 'SSH_USER')]){
                     sh '''
                         ANSIBLE_HOST_KEY_CHECKING=False\
-                        ansible-playbook -i 35.179.120.115, -u ubuntu --private-key ansible/tomcat-install.yml
+                        ansible-playbook -i "35.179.120.115," -u ubuntu --private-key $SSH_KEY ansible/tomcat-install.yml
                         '''
                     
                 }
