@@ -27,7 +27,7 @@ pipeline{
                 }
             }
         }
-        stage('Install tomcat'){
+        stage('deploy tomcat'){
             steps{
                 withCredentials([sshUserPrivateKey(credentialsId: 'ramssh' ,
                                                    KeyFileVariable: 'SSH_KEY',
