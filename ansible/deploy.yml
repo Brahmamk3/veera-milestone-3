@@ -1,0 +1,17 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    war_file: ""
+    app_name: ""
+  tasks:
+    - name: copy war to tomcat
+      copy:
+        src: "{{ war_file }}"
+        dest: '/opt/tomcat/webaaps/{{ app_name }}.war"
+        mode: '0644'
+    -name: restart tomcat
+    shell: |
+      /opt/tomcat/bin/shutdown.sh || true
+      sleep 5
+      nohup /opt/tomcat/bin/startup.sh &
