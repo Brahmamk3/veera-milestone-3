@@ -17,7 +17,7 @@ pipeline{
         stage('Install tomcat'){
             steps{
                 withCredentials([sshUserPrivateKey(credentialsId: 'ramssh' ,
-                                                   KeyFileVariable: 'SSH_KEY',
+                                                   keyFileVariable: 'SSH_KEY',
                                                    usernameVariable: 'SSH_USER')]){
                     sh '''
                         ANSIBLE_HOST_KEY_CHECKING=False\
@@ -30,7 +30,7 @@ pipeline{
         stage('deploy tomcat'){
             steps{
                 withCredentials([sshUserPrivateKey(credentialsId: 'ramssh' ,
-                                                   KeyFileVariable: 'SSH_KEY',
+                                                   keyFileVariable: 'SSH_KEY',
                                                    usernameVariable: 'SSH_USER')]){
                     sh '''
                         ANSIBLE_HOST_KEY_CHECKING=False\
