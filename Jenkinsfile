@@ -34,7 +34,7 @@ pipeline{
                                                    usernameVariable: 'SSH_USER')]){
                     sh '''
                         ANSIBLE_HOST_KEY_CHECKING=False\
-                        ansible-playbook -i  "35.179.120.115," -u $SSH_USER --private-key $SSH_key\
+                       ansible-playbook -i "35.179.120.115," -u ubuntu --private-key $SSH_KEY\
                         ansible/deploy.yml --extra-vars "war_file=${WORKSPACE}/target/addressbook.war app_name=addressbook"
                         '''
                     
