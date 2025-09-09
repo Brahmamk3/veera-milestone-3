@@ -13,6 +13,14 @@ pipeline {
                 sh 'docker build -t image1 .'
             }
         }
+        stage('push to hub'){
+            steps{
+                withDockerRegistry(credentialsId: 'dockerhub', url: 'https://hub.docker.com/repository/docker/brahmamk015/demo-repo') {
+                    sh ' docker tag image1 brahmamk015/demo-repo:indexHTML1'
+                    sh ' docker push brahmamk015/demo-repo:indexHTML1'
+                }
+            }
+        }
 
         stage('Deploy') {
             steps {
