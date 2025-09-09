@@ -1,3 +1,2 @@
-FROM openjdk:17-jdk-slim
-COPY target/app.jar app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+FROM tomcat:9.0-jdk17
+COPY target/addressbook.war /usr/local/tomcat/webapps/addressbook.war
