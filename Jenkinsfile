@@ -24,7 +24,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'docker run -d --name cont1 -p 8082:80 image1'
+                sh 'docker run -d --name cont10 -p 8086:80 image1'
             }
         }
     }
