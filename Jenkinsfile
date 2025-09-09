@@ -28,7 +28,11 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'docker run -d --name cont200 -p 8090:8080 image2'
+                sh '''
+                    docker stop cont200 || true
+                    docker rm cont200 || true
+                    docker run -d --name cont200 -p 8091:8080 image2
+                '''
             }
         }
     }
