@@ -20,15 +20,15 @@ pipeline {
         stage('push to hub'){
             steps{
                 withDockerRegistry(credentialsId: 'dockerhub') {
-                    sh ' docker tag image2 brahmamk015/demo-repo:springboot1'
-                    sh ' docker push brahmamk015/demo-repo:springboot1'
+                    sh ' docker tag image2 brahmamk015/demo-repo:springboot2'
+                    sh ' docker push brahmamk015/demo-repo:springboot2'
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh 'docker run -d --name cont20 -p 8090:8080 image1'
+                sh 'docker run -d --name cont200 -p 8090:8080 image2'
             }
         }
     }
