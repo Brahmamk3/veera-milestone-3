@@ -7,31 +7,33 @@ pipeline {
                 git url: 'https://github.com/Brahmamk3/veera-milestone2.git', branch: 'main'
             }
         }
-        stage('build war file'){
-            steps{
-                sh ' mvn clean package -DskipTests'
+
+        stage('Build WAR file') {
+            steps {
+                sh 'mvn clean package -DskipTests'
             }
         }
-        stage('Build image') {
+
+        stage('Build Docker image') {
             steps {
                 sh 'docker build -t image2 .'
             }
         }
-        stage('push to hub'){
-            steps{
+
+        stage('Push to Docker Hub') {
+            steps {
                 withDockerRegistry(credentialsId: 'dockerhub') {
-                    sh ' docker tag image2 brahmamk015/demo-repo:springboot2'
-                    sh ' docker push brahmamk015/demo-repo:springboot2'
+                    sh 'docker tag image2 brahmamk015/demo-repo:springboot3'
+                    sh 'docker push brahmamk015/demo-repo:springboot3'
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    docker stop cont200 || true
-                    docker rm cont200 || true
-                    docker run -d --name cont200 -p 8091:8080 image2
+                    kubectl apply -f deployment-service.yml
+                    kubectl rollout status deployment/springboot-deployment
                 '''
             }
         }
