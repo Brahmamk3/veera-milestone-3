@@ -6,6 +6,8 @@ pipeline {
         APP_NAME = 'mavenwebapp'
         IMAGE_REPO = 'brahmamk015/demo-repo'
         IMAGE_TAG = "springboot5"
+        K8S_SERVER = 'ubuntu@13.41.163.231'   // Minikube EC2 server
+        SSH_KEY = 'minikube-ssh'                   // Jenkins credentials (SSH private key)
     }
 
     stages {
@@ -14,11 +16,13 @@ pipeline {
                 git 'https://github.com/ashokitschool/maven-web-app.git'
             }
         }
+
         stage('Maven Build') {
             steps {
                 sh 'mvn clean package'
             }
         }
+
         stage('Docker Build & Push') {
             steps {
                 withDockerRegistry(credentialsId: env.DOCKER_CRED, url: 'https://index.docker.io/v1/') {
@@ -29,13 +33,17 @@ pipeline {
                 }
             }
         }
+
         stage('Helm Deploy to Minikube') {
             steps {
-                sh '''
-                    helm upgrade --install ${APP_NAME} ./mavenwebapp \
-                        --set image.repository=${IMAGE_REPO} \
-                        --set image.tag=${IMAGE_TAG}
-                '''
+                sshagent([env.SSH_KEY]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${K8S_SERVER} \\
+                        'helm upgrade --install ${APP_NAME} ./mycart \\
+                            --set image.repository=${IMAGE_REPO} \\
+                            --set image.tag=${IMAGE_TAG}'
+                    """
+                }
             }
         }
     }
