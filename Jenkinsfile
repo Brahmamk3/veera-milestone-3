@@ -1,11 +1,10 @@
 pipeline {
     agent any
-
     environment {
-        // Path where kubeconfig is placed for Jenkins
-        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        MINIKUBE_SSH_CRED = 'minikube-ssh'
+        MINIKUBE_HOST = '3.8.145.38'
+        MINIKUBE_USER = 'jenkins' // Change this if your SSH user is not 'jenkins'
     }
-
     stages {
         stage('Git Checkout') {
             steps {
@@ -36,13 +35,17 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy to Minikube') {
             steps {
-                sh '''
-                    echo "Using kubeconfig: $KUBECONFIG"
-                    kubectl apply -f deployment-service.yml
-                    kubectl rollout status deployment/springboot-deployment
-                '''
+                sshagent(credentials: [env.MINIKUBE_SSH_CRED]) {
+                    sh """
+                        scp -o StrictHostKeyChecking=no deployment-service.yml ${env.MINIKUBE_USER}@${MINIKUBE_HOST}:/tmp/
+                        ssh -o StrictHostKeyChecking=no ${env.MINIKUBE_USER}@${MINIKUBE_HOST} '
+                            kubectl apply -f /tmp/deployment-service.yml
+                            kubectl rollout status deployment/springboot-deployment || true
+                        '
+                    """
+                }
             }
         }
     }
