@@ -26,10 +26,10 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                withDockerRegistry(credentialsId: 'dockerhub') {
+                withDockerRegistry(url: 'https://index.docker.io/v1/', credentialsId: 'dockerhub') {
                     sh '''
-                        docker tag image2 brahmamk015/demo-repo:springboot2
-                        docker push brahmamk015/demo-repo:springboot2
+                        docker tag image2 brahmamk015/demo-repo:springboot5
+                        docker push brahmamk015/demo-repo:springboot5
                     '''
                 }
             }
