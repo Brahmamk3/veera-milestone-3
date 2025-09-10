@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         MINIKUBE_SSH_CRED = 'minikube-ssh'
-        MINIKUBE_HOST = '3.8.145.38'
+        MINIKUBE_HOST = '18.135.46.78'
         MINIKUBE_USER = 'ubuntu' // Change this if your SSH user is not 'jenkins'
     }
     stages {
