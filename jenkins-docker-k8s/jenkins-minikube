@@ -1,0 +1,53 @@
+Jenkins Server setup:
+======================
+1.install jenkins from jenkins setup : https://github.com/Brahmamk3/DevOps-Documents/blob/main/01-Jenkins-Server-Setup.md
+2.install docker from Jenkins-Docker-K8S.md--step-6: https://github.com/Brahmamk3/DevOps-Documents/blob/main/10-Jenkins-Docker-K8S.md
+3.install maven : sudo apt install maven -y
+in jenkins:
+===========
+installed plugins: 
+1.Docker Pipeline
+2.pipeline:stage view
+3.ssh agent
+
+credentials:
+1.dockerhub credentials L username and password
+2.minikube-shh credentials : ssh with private key
+
+dockerfile and piplescript and deployment-service.yml(for normal not helm) same.
+jenkinsfile pipeline script for normal 
+jenkinsfilehelm foe helm type question
+
+Minikube server setup:
+==========================
+1. Install minikube form minikube setup : https://github.com/Brahmamk3/DevOps-Documents/blob/main/13_MiniKube_Setup.md
+2. Install helm if needed : 
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+helm version
+helm create mycart
+cd mycart/
+vim values.yml
+image:
+  repository: brahmamk015/demo-repo
+  tag: "springboot5"
+service:
+  type: NodePort
+  port: 8080
+  targetPort: 8080
+  kubectl port-forward --address 0.0.0.0 service/springboot-service 8080:8080
+  http://minikube-ed2-public-ip:8080/addressbook/
+
+
+  suggestions:
+  1.values.yml:
+   image:
+     repository: brahmamk015/demo-repo
+     tag: "springboot5"
+   service:
+     type: NodePort   # Good! Needed for external access
+     port: 8080
+     
+⚠️ Don’t forget to also set `targetPort: 8080` in your service section. 
+
+2.Access from browser:
+   http://<Minikube-EC2-Public-IP>:<NodePort>/addressbook/
