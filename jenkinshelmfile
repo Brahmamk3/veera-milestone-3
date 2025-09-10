@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+    
+    tools {
+        maven "Maven-3.9.9"
+    }
+
+    environment {
+        DOCKER_CRED = 'dockerhub'
+        APP_NAME = 'mavenwebapp'
+        IMAGE_REPO = 'brahmamk015/demo-repo'
+        IMAGE_TAG = "springboot5"
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git 'https://github.com/ashokitschool/maven-web-app.git'
+            }
+        }
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Docker Build & Push') {
+            steps {
+                withDockerRegistry(credentialsId: env.DOCKER_CRED, url: 'https://index.docker.io/v1/') {
+                    sh '''
+                        docker build -t ${IMAGE_REPO}:${IMAGE_TAG} .
+                        docker push ${IMAGE_REPO}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+        stage('Helm Deploy to Minikube') {
+            steps {
+                sh '''
+                    helm upgrade --install ${APP_NAME} ./mavenwebapp \
+                        --set image.repository=${IMAGE_REPO} \
+                        --set image.tag=${IMAGE_TAG}
+                '''
+            }
+        }
+    }
+}
