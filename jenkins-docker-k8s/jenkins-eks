@@ -1,0 +1,440 @@
+In jenkins server:
+===================
+sudo apt update -y
+sudo apt install fontconfig openjdk-17-jre -y
+java -version
+#install jenkins
+wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+sudo apt update -y
+sudo apt install jenkins -y
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+docker --version
+
+# Install AWS CLI
+sudo apt install unzip -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+# Install kubectl
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.27.3/2023-07-05/bin/linux/amd64/kubectl
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin
+kubectl version --short --client
+
+
+Install Plugins in Jenkins
+-------------------------------
+Go to: Manage Jenkins → Plugins → install:
+1.Docker Pipeline
+2.AWS Credentials
+3.Maven Integration
+4.Pipeline: Stage View
+5.(optional) Kubernetes CLI
+
+Add Credentials in Jenkins:
+===============================
+Manage Jenkins → Credentials → System → Global → Add
+1.AWS Credentials
+Type: AWS Credentials
+ID: aws-creds
+Access Key + Secret Key from IAM user
+
+2.DockerHub Credentials
+Type: Username & Password
+ID: dockerhub
+
+Tools: Configure Maven:
+=======================
+Manage Jenkins → Tools → Maven → Add Maven
+Name: Maven-3.9.9
+
+
+eks cluster:
+=============
+1.created by terraform
+2.install tools whatever in jenkins-docker-k8s setup
+
+
+Common Permissions Needed (For Jenkins/EKS work)
+If you're working with Jenkins and EKS, minimum permissions often include:
+
+eks:DescribeCluster
+eks:ListClusters
+eks:UpdateKubeconfig
+ec2:Describe*
+iam:PassRole (for certain EKS actions)
+ecr:* (if you use AWS ECR for Docker images)
+s3:* (if you use S3 for storage)
+cloudformation:* (if you deploy with CloudFormation)
+You do NOT need admin permissions, but you need the above for EKS/Jenkins pipelines.
+
+======================================================================================================================================================================
+======================================================================================================================================================================
+======================================================================================================================================================================
+======================================================================================================================================================================
+
+Absolutely! Here’s a **step-by-step, end-to-end guide** for setting up Jenkins, Docker, AWS CLI, kubectl, deploying a Spring Boot app to EKS via a Jenkins Pipeline, and infrastructure provisioning with Terraform.  
+I’ll **clarify, re-order, and correct mistakes** in your original notes and explain each step in **simple language**.
+
+---
+
+# 1. Jenkins Server Setup
+
+### 1.1. **Update & Install Java**
+```bash
+sudo apt update -y
+sudo apt install fontconfig openjdk-17-jre -y
+java -version
+```
+- Updates package lists.
+- Installs Java 17, required for Jenkins.
+
+---
+
+### 1.2. **Install Jenkins**
+```bash
+wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+sudo apt update -y
+sudo apt install jenkins -y
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+```
+- Downloads Jenkins repo key & source list.
+- Installs Jenkins and starts its service.
+
+---
+
+### 1.3. **Install Docker**
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+docker --version
+```
+- Installs Docker.
+- Adds Jenkins user to the Docker group (allows Jenkins jobs to use Docker).
+- Restarts Jenkins to apply group changes.
+
+---
+
+### 1.4. **Install AWS CLI**
+```bash
+sudo apt install unzip -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+```
+- Installs AWS CLI for interacting with AWS from Jenkins.
+
+---
+
+### 1.5. **Install kubectl**
+```bash
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.27.3/2023-07-05/bin/linux/amd64/kubectl
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin
+kubectl version --short --client
+```
+- Installs `kubectl` to manage the Kubernetes (EKS) cluster.
+
+---
+
+# 2. Jenkins Configuration
+
+## 2.1. **Install Plugins**
+- In Jenkins UI:  
+  **Manage Jenkins → Manage Plugins → Available**
+  - Search and install:
+    - Docker Pipeline
+    - AWS Credentials
+    - Maven Integration
+    - Pipeline: Stage View
+    - (Optional) Kubernetes CLI
+
+---
+
+## 2.2. **Add Credentials**
+
+- **Manage Jenkins → Credentials → System → Global → Add Credentials**
+
+  1. **AWS Credentials**
+     - Kind: AWS Credentials
+     - ID: `aws-creds`
+     - Access Key ID & Secret Access Key from your AWS IAM user
+
+  2. **DockerHub Credentials**
+     - Kind: Username with password
+     - ID: `dockerhub`
+     - Your DockerHub username & password
+
+---
+
+## 2.3. **Configure Maven Tool**
+- **Manage Jenkins → Global Tool Configuration**
+  - Under **Maven**, add:
+    - Name: `Maven-3.9.9`
+    - (Optionally set MAVEN_HOME or auto-install)
+
+---
+
+# 3. Infrastructure Provisioning with Terraform (EKS & VPC)
+
+### 3.1. **Prepare Terraform Files**
+
+**Main points:**
+- Use [terraform-aws-modules/vpc/aws](https://github.com/terraform-aws-modules/terraform-aws-vpc) and [terraform-aws-modules/eks/aws](https://github.com/terraform-aws-modules/terraform-aws-eks).
+- Make your resource names unique (use your name or username) to avoid conflicts.
+
+**Example `main.tf`:**
+```hcl
+provider "aws" {
+  region = "eu-west-2"
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0.0"
+    }
+  }
+  required_version = ">= 1.3.0"
+}
+
+variable "owner" {
+  description = "Unique owner name"
+  type        = string
+  default     = "veera-brahmanjaneyule"
+}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.1.2"
+  name = "team4-${var.owner}-vpc"
+  cidr = "10.0.0.0/16"
+  azs            = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
+  public_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  enable_dns_hostnames    = true
+  enable_dns_support      = true
+  map_public_ip_on_launch = true
+  tags = {
+    "kubernetes.io/cluster/${var.owner}-eks-cluster" = "shared"
+    Owner                                            = var.owner
+    Terraform                                        = "true"
+  }
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+}
+
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 21.0"
+  name = "team4-${var.owner}-eks-cluster"
+  kubernetes_version = "1.30"
+  addons = {
+    coredns                = {}
+    eks-pod-identity-agent = { before_compute = true }
+    kube-proxy = {}
+    vpc-cni    = { before_compute = true }
+  }
+  endpoint_public_access = true
+  enable_cluster_creator_admin_permissions = true
+  eks_managed_node_groups = {
+    example = {
+      ami_type       = "AL2023_x86_64_STANDARD"
+      instance_types = ["t3.medium"]
+      min_size     = 2
+      max_size     = 2
+      desired_size = 2
+    }
+  }
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.public_subnets
+  tags = {
+    Owner     = var.owner
+    Terraform = "true"
+  }
+}
+```
+
+### 3.2. **Initialize & Apply Terraform**
+```bash
+terraform init
+terraform apply   # Review and type 'yes' to approve
+```
+- This creates VPC, public subnets, and EKS cluster.
+
+---
+
+# 4. Application & Docker
+
+## 4.1. **Dockerfile Example (Spring Boot with Tomcat)**
+```dockerfile
+FROM tomcat:9.0-jdk17
+COPY target/addressbook.war /usr/local/tomcat/webapps/addressbook.war
+```
+- Place this Dockerfile in your project root.
+- Your Maven build should produce `addressbook.war` inside `target/`.
+
+---
+
+## 4.2. **Kubernetes Deployment YAML**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-deployment
+  labels:
+    app: springboot-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: springboot-app
+  template:
+    metadata:
+      labels:
+        app: springboot-app
+    spec:
+      containers:
+        - name: springboot-container
+          image: brahmamk015/demo-repo:springboot5   # <--- Make sure tag matches the built Docker image!
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-service
+spec:
+  selector:
+    app: springboot-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: NodePort  # Use LoadBalancer if you want external access via AWS ELB
+```
+- Save this as `deployment-service.yml` in your repo.
+
+---
+
+# 5. Jenkins Pipeline: CI/CD for EKS
+
+**Example Jenkinsfile:**
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION   = "eu-west-2"
+        CLUSTER_NAME = "team4-eks-cluster"   // Make sure this matches your EKS cluster
+        IMAGE_NAME   = "brahmamk015/demo-repo:springboot5"  // Your DockerHub repo and image tag
+    }
+
+    tools {
+        maven "Maven-3.9.9"
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git 'https://github.com/Brahmamk3/veera-milestone2.git'
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        docker build -t $IMAGE_NAME .
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push $IMAGE_NAME
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                    sh """
+                        aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+                        kubectl apply -f deployment-service.yml
+                        kubectl rollout status deployment/springboot-deployment --timeout=90s
+                    """
+                }
+            }
+        }
+    }
+}
+```
+- **NOTE:** Adjust `CLUSTER_NAME` and `IMAGE_NAME` as needed to match your AWS and DockerHub configuration.
+
+---
+
+# 6. How the Whole Flow Works
+
+1. **Terraform** provisions AWS infrastructure (VPC & EKS).
+2. **Jenkins** is set up with Docker, AWS CLI, and kubectl.
+3. **Jenkins Pipeline**:
+    - Pulls code from GitHub.
+    - Builds the Spring Boot app with Maven.
+    - Builds and pushes Docker image to DockerHub.
+    - Deploys the image to your EKS cluster using `kubectl apply`.
+4. **Kubernetes** runs your app and exposes it as a Service.
+
+---
+
+# 7. Common Mistakes & Fixes
+
+- **Image tag mismatch:**  
+  Make sure image tag in Jenkinsfile, Docker build, and `deployment-service.yml` are the same.
+- **Credentials:**  
+  Ensure Jenkins has DockerHub and AWS creds configured.
+- **Jenkins user permissions:**  
+  Jenkins must be in the `docker` group and have access to AWS CLI and kubectl.
+- **EKS cluster name:**  
+  Cluster name in AWS, `aws eks update-kubeconfig`, and pipeline should all match.
+
+---
+
+# 8. Accessing Your App
+
+- If using `NodePort`, get the node’s public IP and the assigned port (via `kubectl get svc`).
+- For public access, change service type to `LoadBalancer`.
+
+---
+
+**Summary:**  
+This guide helps you provision infra with Terraform, build and CI/CD your app with Jenkins, deploy to EKS using Docker, and access your app via Kubernetes services.
+
+If you want a single markdown file or script for all of this, just ask!
