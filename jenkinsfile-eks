@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION   = "eu-west-2"           // 🔹 Your AWS region
+        CLUSTER_NAME = "team4-eks-cluster"   // 🔹 Your EKS cluster name
+        IMAGE_NAME   = "brahmamk015/demo-repo:springboot5"  // 🔹 Your Docker image
+    }
+
+    tools {
+        maven "Maven-3.9.9"  // 🔹 Jenkins Maven tool (configure in Jenkins -> Global Tool Config)
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git 'https://github.com/Brahmamk3/veera-milestone2.git'
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                              usernameVariable: 'DOCKER_USER',
+                              passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        docker build -t $IMAGE_NAME .
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push $IMAGE_NAME
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                    sh """
+                        aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+                        kubectl apply -f deployment-service.yml
+                        kubectl rollout status deployment/springboot-deployment --timeout=90s
+                    """
+                }
+            }
+        }
+    }
+}
