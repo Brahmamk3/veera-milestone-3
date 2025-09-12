@@ -1,0 +1,2 @@
+export DOCKER_BUILDKIT=1
+docker build -t akshu20791/april132025project:v1 .
