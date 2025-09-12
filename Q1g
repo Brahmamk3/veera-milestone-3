@@ -1,0 +1,344 @@
+Great job on completing the Docker container build, registry push, and run steps!  
+Based on your image and requirements, here's the **end-to-end guide for the remaining steps**, focusing on host-level monitoring with Grafana (step-by-step process, commands, example code, and documentation):
+
+---
+
+## 1. Monitoring: Collect Host-level Metrics (CPU, RAM, Disk, Network) and Visualize with Grafana
+
+You’ll use **Prometheus Node Exporter** for host metrics and **Grafana** for visualization.
+
+### Step 1: Install Prometheus Node Exporter on the Host
+
+```sh
+# Download and run node_exporter
+wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+tar xvfz node_exporter-1.6.1.linux-amd64.tar.gz
+cd node_exporter-1.6.1.linux-amd64
+nohup ./node_exporter &
+```
+
+This will expose host metrics at `http://localhost:9100/metrics`
+
+---
+
+### Step 2: Install Prometheus (simple local setup)
+
+```sh
+# Download and run Prometheus
+wget https://github.com/prometheus/prometheus/releases/download/v2.48.1/prometheus-2.48.1.linux-amd64.tar.gz
+tar xvfz prometheus-2.48.1.linux-amd64.tar.gz
+cd prometheus-2.48.1.linux-amd64
+
+# Create prometheus.yml with node_exporter target:
+cat <<EOF > prometheus.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+EOF
+
+nohup ./prometheus --config.file=prometheus.yml &
+```
+
+Prometheus UI: `http://localhost:9090`
+
+---
+
+### Step 3: Install Grafana
+
+```sh
+# On Ubuntu/Debian:
+sudo apt-get install -y apt-transport-https software-properties-common
+sudo apt-get install -y wget
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+sudo apt-get update
+sudo apt-get install -y grafana
+sudo systemctl start grafana-server
+sudo systemctl enable grafana-server
+```
+
+Grafana UI: `http://localhost:3000`  
+Login: admin / admin
+
+---
+
+### Step 4: Connect Prometheus Data Source in Grafana
+
+1. Open Grafana at `http://localhost:3000`
+2. Login (admin/admin)
+3. Go to **Settings → Data Sources → Add data source**
+4. Select **Prometheus**
+5. Set URL to `http://localhost:9090`
+6. Click **Save & Test**
+
+---
+
+### Step 5: Import Node Exporter Dashboard
+
+- Go to **Dashboard → Import**
+- Use [Grafana Node Exporter Full Dashboard](https://grafana.com/grafana/dashboards/1860-node-exporter-full/)
+- Enter Dashboard ID: `1860` and import
+
+You will now see live metrics for CPU, RAM, Disk, and Network.
+
+---
+
+### Step 6: Add Alerting Rule (Simple Example)
+
+1. In Grafana, edit a panel (e.g., CPU usage).
+2. Go to **Alert → Create Alert**
+3. Set conditions (e.g., if CPU > 80% for 5min).
+4. Configure notification channel (email/Slack).
+
+---
+
+## 2. Example Monitoring Documentation
+
+````markdown name=MONITORING.md
+# Monitoring Setup
+
+## Tools
+- Prometheus Node Exporter: Collects host/server metrics.
+- Prometheus: Stores and scrapes metrics.
+- Grafana: Visualizes metrics and enables alerting.
+
+## Setup
+
+1. **Install Node Exporter**  
+   ```
+   wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+   tar xvfz node_exporter-1.6.1.linux-amd64.tar.gz
+   cd node_exporter-1.6.1.linux-amd64
+   nohup ./node_exporter &
+   ```
+   Metrics at: `http://localhost:9100/metrics`
+
+2. **Install Prometheus**  
+   ```
+   wget https://github.com/prometheus/prometheus/releases/download/v2.48.1/prometheus-2.48.1.linux-amd64.tar.gz
+   tar xvfz prometheus-2.48.1.linux-amd64.tar.gz
+   cd prometheus-2.48.1.linux-amd64
+   cat <<EOF > prometheus.yml
+   global:
+     scrape_interval: 15s
+   scrape_configs:
+     - job_name: 'node_exporter'
+       static_configs:
+         - targets: ['localhost:9100']
+   EOF
+   nohup ./prometheus --config.file=prometheus.yml &
+   ```
+   Prometheus UI: `http://localhost:9090`
+
+3. **Install Grafana**  
+
+---
+
+## 3. Deliverables
+
+- **Custom Dockerfile** – already in your repo.
+- **Jenkinsfile** – your pipeline above.
+- **Deployment assets** – not required for host Docker.
+- **Monitoring setup** – above instructions and `MONITORING.md`.
+- **Documentation** – see provided markdown file.
+
+---
+
+## 4. End-to-End Flow
+
+1. **Code checkout**
+2. **Docker build**
+3. **Push to Docker Hub**
+4. **Run container**
+5. **Prometheus Node Exporter + Prometheus + Grafana**
+6. **Metrics visible on Grafana dashboard**
+7. **Alerts configured**
+8. **Documentation provided**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Your Jenkins pipeline is well-structured for CI/CD to Minikube!  
+Now, to **extend this for monitoring (Prometheus & Grafana)** according to your project requirements, here’s a complete end-to-end process, including code, commands, and integration with your Jenkinsfile.
+
+---
+
+## 1. Monitoring Tools Installation (One-time, on Minikube)
+
+**SSH into your Minikube host and run:**
+
+### a. Add Helm repos and update
+
+```sh
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+```
+
+### b. Create Monitoring Namespace
+
+```sh
+kubectl create namespace monitoring
+```
+
+### c. Install Prometheus
+
+```sh
+helm install prometheus prometheus-community/prometheus --namespace monitoring
+```
+
+### d. Install Grafana
+
+```sh
+helm install grafana grafana/grafana --namespace monitoring \
+  --set adminPassword='admin' \
+  --set service.type=NodePort
+```
+
+---
+
+## 2. Expose Grafana Dashboard
+
+Find NodePort and Minikube IP:
+
+```sh
+kubectl get svc -n monitoring
+minikube ip
+```
+
+Access Grafana at  
+`http://<minikube_ip>:<grafana_nodeport>`  
+Login: admin / admin
+
+---
+
+## 3. Configure Monitoring in Jenkins Pipeline
+
+You may want to add a post-deployment stage to verify monitoring status or trigger alerts.
+
+### Example: Add Monitoring Verification Stage
+
+Add this after your Deploy stage:
+
+```groovy
+stage('Verify Monitoring') {
+    steps {
+        sshagent(credentials: [env.MINIKUBE_SSH_CRED]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no ${env.MINIKUBE_USER}@${MINIKUBE_HOST} '
+                    kubectl get pods -n monitoring
+                    kubectl get svc -n monitoring
+                '
+            """
+        }
+        // Optionally, curl Grafana/Prometheus endpoints to verify up
+    }
+}
+```
+
+---
+
+## 4. Sample Kubernetes Deployment Manifest (deployment-service.yml)
+
+Make sure your app exposes metrics endpoint if you want application monitoring (example with a simple deployment):
+
+```yaml name=deployment-service.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: springboot-app
+  template:
+    metadata:
+      labels:
+        app: springboot-app
+    spec:
+      containers:
+      - name: springboot-container
+        image: brahmamk015/demo-repo:springboot5
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-service
+spec:
+  type: NodePort
+  selector:
+    app: springboot-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30007
+```
+
+---
+
+## 5. End-to-End Flow
+
+**Developer pushes code → Jenkins pipeline runs → Application deployed to Minikube → Monitoring active via Prometheus & Grafana**
+
+---
+
+## 6. Documentation Example
+
+````markdown name=MONITORING.md
+# Monitoring Setup on Minikube
+
+## Installation Steps
+1. Add Helm repos for Prometheus & Grafana.
+2. Create monitoring namespace.
+3. Install Prometheus & Grafana via Helm.
+
+## Access Grafana
+- URL: `http://<minikube_ip>:<NodePort>`
+- Login: admin / admin
+
+## Jenkins Pipeline Integration
+- Deploys app and manifests.
+- Verifies monitoring by listing pods/services.
+
+## Monitoring
+- Cluster and application metrics scraped by Prometheus.
+- Visualized in Grafana dashboard.
+````
+
+---
+
+## 7. Summary
+
+- Your Jenkinsfile is great for CI/CD.
+- Add monitoring setup on Minikube (one time).
+- Extend Jenkinsfile with a monitoring verification stage if needed.
+- Document the setup for deliverables.
+
+Let me know if you want a **Grafana dashboard JSON**, **Prometheus scrape config**, or help with **app metrics integration**!
+
+
+
+
+Let me know if you want a sample Dockerfile, any automation scripts, or help with advanced alerting!
