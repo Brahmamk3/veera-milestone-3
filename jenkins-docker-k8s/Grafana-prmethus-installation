@@ -1,0 +1,90 @@
+Certainly! Here’s how you can install Prometheus and Grafana on your Kubernetes (Minikube EC2) cluster using Helm:
+
+aws eks --region <your-region> update-kubeconfig --name <your-eks-cluster-name>
+
+# Download and run the official Helm installation script
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Verify Helm installation
+helm version
+---
+
+## 1. Prerequisites
+
+- Helm installed on your system (`helm version`)
+- Kubectl configured to connect to your cluster (`kubectl get nodes` should work)
+
+---
+
+## 2. Add Helm Repositories
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+```
+
+---
+
+## 3. Install Prometheus using Helm
+
+```bash
+helm install prometheus prometheus-community/prometheus
+```
+
+- This installs Prometheus in the default namespace.
+- To install in a specific namespace (e.g., monitoring):
+
+```bash
+kubectl create namespace monitoring
+helm install prometheus prometheus-community/prometheus -n monitoring
+```
+
+---
+
+## 4. Install Grafana using Helm
+
+```bash
+helm install grafana grafana/grafana
+```
+
+- To install in a specific namespace (e.g., monitoring):
+
+```bash
+helm install grafana grafana/grafana -n monitoring
+```
+
+---
+
+## 5. Access Prometheus and Grafana
+
+### Prometheus
+
+To access the Prometheus UI:
+
+```bash
+kubectl port-forward --address 0.0.0.0 svc/prometheus-server 9090:80
+```
+Then browse to: ```
+http://<EC2-IP>:9090
+
+### Grafana
+
+To access the Grafana UI:
+
+```bash
+kubectl get all -l app.kubernetes.io/name=grafana
+kubectl port-forward --address 0.0.0.0 svc/grafana 3000:80
+```
+http://<EC2-IP>:3000
+
+- Default admin password:
+  - Get it with:
+    ```bash
+    kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+    ```
+  - If you installed in the `monitoring` namespace, change `--namespace default` to `--namespace monitoring`.
+
+---
+
+Let me know if you need more details or help with custom values/configuration!
