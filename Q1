@@ -1,0 +1,258 @@
+Here is an end-to-end guide for your project requirements, including all commands, setup steps, and a sample Jenkins pipeline script. This guide covers:
+
+- Dockerfile for containerizing the website
+- Jenkins pipeline (Jenkinsfile) for CI/CD
+- Local Docker deployment
+- Basic single-node Kubernetes deployment (optional/stretch)
+- Monitoring with Prometheus & Grafana (host metrics, alerting)
+- Example commands for every step
+- Documentation for setup, access, and cleanup
+
+---
+
+## 1. Fork and Clone the Repo
+
+```sh
+# Fork https://github.com/akshu20791/apachewebsite to your GitHub account via the GitHub UI
+
+# Clone your forked repo
+git clone https://github.com/<your-username>/apachewebsite.git
+cd apachewebsite
+```
+
+---
+
+## 2. Write a Dockerfile
+
+```Dockerfile name=Dockerfile
+FROM httpd:2.4
+COPY . /usr/local/apache2/htdocs/
+```
+
+---
+
+## 3. Jenkins Setup (Single Machine)
+
+### Install Jenkins, Docker, Docker Compose
+
+```sh
+# Ubuntu example
+sudo apt update
+sudo apt install -y openjdk-11-jdk docker.io docker-compose
+sudo systemctl enable --now docker
+
+# Jenkins (using official repo)
+wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
+sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+sudo apt update
+sudo apt install -y jenkins
+sudo systemctl enable --now jenkins
+```
+
+- Add Jenkins user to Docker group:
+```sh
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+```
+- Access Jenkins at: http://localhost:8080
+
+---
+
+## 4. Jenkinsfile (Pipeline Script)
+
+```groovy name=Jenkinsfile
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "apachewebsite"
+        REGISTRY = "localhost:5000"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE_NAME}:latest"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $FULL_IMAGE .'
+            }
+        }
+        stage('Push to Local Registry') {
+            steps {
+                script {
+                    // Start registry if not running
+                    sh '''
+                    docker inspect registry || docker run -d -p 5000:5000 --name registry registry:2 || true
+                    '''
+                }
+                sh 'docker push $FULL_IMAGE'
+            }
+        }
+        stage('Deploy (Docker Run)') {
+            steps {
+                sh '''
+                docker stop apachewebsite || true
+                docker rm apachewebsite || true
+                docker run -d --name apachewebsite -p 80:80 $FULL_IMAGE
+                '''
+            }
+        }
+        stage('Health Check') {
+            steps {
+                sh 'curl -f http://localhost || (echo "Health check failed" && exit 1)'
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+```
+
+---
+
+## 5. (Optional) Kubernetes Single Node (Stretch)
+
+### Install minikube
+
+```sh
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube start
+eval $(minikube docker-env)
+```
+
+### Kubernetes Deployment YAML
+
+```yaml name=deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apachewebsite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apachewebsite
+  template:
+    metadata:
+      labels:
+        app: apachewebsite
+    spec:
+      containers:
+      - name: apachewebsite
+        image: localhost:5000/apachewebsite:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apachewebsite-service
+spec:
+  type: NodePort
+  selector:
+    app: apachewebsite
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+```
+
+```sh
+kubectl apply -f deployment.yaml
+minikube service apachewebsite-service
+```
+
+---
+
+## 6. Monitoring Setup (Prometheus & Grafana)
+
+### Docker Compose for Monitoring Stack
+
+```yaml name=docker-compose.monitoring.yaml
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus
+    ports: [ "9090:9090" ]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  node_exporter:
+    image: prom/node-exporter
+    ports: [ "9100:9100" ]
+  grafana:
+    image: grafana/grafana
+    ports: [ "3000:3000" ]
+```
+
+### prometheus.yml
+
+```yaml name=prometheus.yml
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter:9100']
+```
+
+### Start Monitoring Stack
+
+```sh
+docker-compose -f docker-compose.monitoring.yaml up -d
+```
+
+- Grafana: http://localhost:3000 (default: admin/admin)
+- Add Prometheus as a data source (`http://prometheus:9090`)
+- Import node_exporter dashboard from [Grafana.com](https://grafana.com/grafana/dashboards/1860)
+
+### Alerting Example: CPU Usage Alert
+
+In Grafana, create an alert on a panel, e.g.,
+- Expression: `avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) < 0.10`
+- Alert if < 10% idle (i.e., >90% CPU used)
+
+---
+
+## 7. Documentation: Access, Cleanup, Deliverables
+
+### Access
+
+- Website: http://localhost (or `minikube service url`)
+- Jenkins: http://localhost:8080
+- Grafana: http://localhost:3000
+
+### Cleanup
+
+```sh
+# Stop and remove containers
+docker stop apachewebsite registry
+docker rm apachewebsite registry
+
+# For minikube
+minikube delete
+
+# For monitoring stack
+docker-compose -f docker-compose.monitoring.yaml down
+```
+
+---
+
+## 8. Deliverables
+
+- Dockerfile
+- Jenkinsfile
+- deployment.yaml (if stretch goal)
+- prometheus.yml, docker-compose.monitoring.yaml
+- README.md with all steps above
+
+---
+
+If you need a templated `README.md` or further scripting, let me know!
